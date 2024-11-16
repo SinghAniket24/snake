@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aniket's Snake Challenge</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: linear-gradient(135deg, #00b4d8, #0077b6, #023e8a);
+      font-family: 'Arial', sans-serif;
+      color: white;
+      overflow: hidden;
+    }
+
+    h1 {
+      font-size: 3.5rem;
+      margin-bottom: 20px;
+      animation: slideIn 1s ease-out;
+      font-weight: bold;
+    }
+
+    canvas {
+      background: #f1faee;
+      border: 3px solid #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s;
+    }
+
+    canvas:hover {
+      transform: scale(1.05);
+    }
+
+    .controls {
+      margin-top: 20px;
+      text-align: center;
+      animation: fadeIn 1.5s ease-out;
+    }
+
+    .controls button, .controls select {
+      padding: 12px 24px;
+      font-size: 18px;
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-right: 10px;
+      transition: background 0.3s ease;
+    }
+
+    .controls button:hover, .controls select:hover {
+      background: #45a049;
+    }
+
+    .controls input {
+      width: 150px;
+      padding: 10px;
+      font-size: 18px;
+      text-align: center;
+      border: 2px solid #fff;
+      border-radius: 5px;
+      background: #222;
+      color: #fff;
+    }
+
+    .controls input:disabled {
+      background: #333;
+    }
+
+    footer {
+      margin-top: 20px;
+      font-size: 1rem;
+      animation: fadeIn 2s ease-out;
+    }
+
+    footer a {
+      color: #fff;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    footer a:hover {
+      color: #e63946;
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
+    @keyframes slideIn {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(0); }
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      canvas {
+        width: 90%;
+        height: auto;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+      }
+
+      .controls {
+        margin-top: 15px;
+      }
+
+      footer {
+        font-size: 0.9rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1><i class="fas fa-gamepad"></i> Aniket's Snake Challenge</h1>
+  <canvas id="gameCanvas" width="600" height="400"></canvas>
+  <div class="controls">
+    <button id="startBtn"><i class="fas fa-play"></i> Start Game</button>
+    <button id="pauseResumeBtn" style="display: none;"><i class="fas fa-pause"></i> Pause</button>
+    <button id="restartBtn" style="display: none;"><i class="fas fa-redo"></i> Restart</button>
+    <select id="speedSelect">
+      <option value="200">Easy</option>
+      <option value="100" selected>Medium</option>
+      <option value="50">Hard</option>
+    </select>
+    <input type="text" id="scoreBox" value="Score: 0" disabled />
+  </div>
+
+  <footer>
+    <p>Developed by <a href="https://yourportfolio.com" target="_blank">Aniket Singh</a></p>
+  </footer>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const startBtn = document.getElementById('startBtn');
+    const pauseResumeBtn = document.getElementById('pauseResumeBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const speedSelect = document.getElementById('speedSelect');
+    const scoreBox = document.getElementById('scoreBox');
+
+    const boxSize = 20;
+    let snake = [];
+    let direction = 'RIGHT';
+    let food = {};
+    let bonusFood = {};
+    let score = 0;
+    let foodCount = 0;
+    let gamePaused = false;
+    let gameStarted = false;
+    let gameSpeed = parseInt(speedSelect.value);
+    let intervalId;
+    let bonusFoodTimer = null;
+
+    function drawGame() {
+      if (gamePaused) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw food (circle)
+      ctx.beginPath();
+      ctx.arc(food.x + boxSize / 2, food.y + boxSize / 2, boxSize / 2, 0, Math.PI * 2);
+      ctx.fillStyle = "#e63946";
+      ctx.fill();
+      ctx.closePath();
+
+      // Draw bonus food (star shape)
+      if (bonusFood) {
+        ctx.beginPath();
+        ctx.arc(bonusFood.x + boxSize / 2, bonusFood.y + boxSize / 2, boxSize / 2, 0, Math.PI * 2);
+        ctx.fillStyle = "#ffbe0b";  // Yellow for bonus food
+        ctx.fill();
+        ctx.closePath();
+      }
+
+      // Draw snake (rectangles)
+      snake.forEach(segment => {
+        ctx.fillStyle = "#1d3557";
+        ctx.fillRect(segment.x, segment.y, boxSize, boxSize);
+      });
+
+      moveSnake();
+      checkCollision();
+      scoreBox.value = `Score: ${score}`;
+    }
+
+    function moveSnake() {
+      const head = { ...snake[0] };
+
+      switch (direction) {
+        case 'UP':
+          head.y -= boxSize;
+          break;
+        case 'DOWN':
+          head.y += boxSize;
+          break;
+        case 'LEFT':
+          head.x -= boxSize;
+          break;
+        case 'RIGHT':
+          head.x += boxSize;
+          break;
+      }
+
+      snake.unshift(head);
+
+      // Check if snake eats regular food
+      if (head.x === food.x && head.y === food.y) {
+        score++;
+        foodCount++;
+        food = spawnFood();
+        if (foodCount % 3 === 0) {
+          bonusFood = spawnBonusFood();
+          if (bonusFoodTimer) clearTimeout(bonusFoodTimer); // Reset timer if bonus food reappears
+          bonusFoodTimer = setTimeout(() => {
+            bonusFood = null; // Remove bonus food after 10 seconds
+          }, 10000); // 10 seconds
+        }
+      }
+      // Check if snake eats bonus food
+      if (bonusFood && head.x === bonusFood.x && head.y === bonusFood.y) {
+        score += 3;
+        bonusFood = null;
+      } else {
+        snake.pop();
+      }
+    }
+
+    function checkCollision() {
+      const head = snake[0];
+
+      if (head.x < 0 || head.y < 0 || head.x >= canvas.width || head.y >= canvas.height) {
+        resetGame();
+      }
+
+      for (let i = 1; i < snake.length; i++) {
+        if (head.x === snake[i].x && head.y === snake[i].y) {
+          resetGame();
+        }
+      }
+    }
+
+    function spawnFood() {
+      return {
+        x: Math.floor(Math.random() * (canvas.width / boxSize)) * boxSize,
+        y: Math.floor(Math.random() * (canvas.height / boxSize)) * boxSize,
+      };
+    }
+
+    function spawnBonusFood() {
+      return {
+        x: Math.floor(Math.random() * (canvas.width / boxSize)) * boxSize,
+        y: Math.floor(Math.random() * (canvas.height / boxSize)) * boxSize,
+      };
+    }
+
+    function resetGame() {
+      alert('Game Over! Your score: ' + score);
+      score = 0;
+      snake = [{ x: boxSize * 5, y: boxSize * 5 }, { x: boxSize * 4, y: boxSize * 5 }, { x: boxSize * 3, y: boxSize * 5 }];
+      direction = 'RIGHT';
+      food = spawnFood();
+      bonusFood = null;
+      foodCount = 0;
+      scoreBox.value = `Score: ${score}`;
+      clearInterval(intervalId);
+      gameStarted = false;
+      startBtn.style.display = 'inline-block';
+      pauseResumeBtn.style.display = 'none';
+      restartBtn.style.display = 'none';
+    }
+
+    document.addEventListener('keydown', (event) => {
+      if (!gameStarted || gamePaused) return;
+      if (event.key === 'ArrowUp' && direction !== 'DOWN') {
+        direction = 'UP';
+      } else if (event.key === 'ArrowDown' && direction !== 'UP') {
+        direction = 'DOWN';
+      } else if (event.key === 'ArrowLeft' && direction !== 'RIGHT') {
+        direction = 'LEFT';
+      } else if (event.key === 'ArrowRight' && direction !== 'LEFT') {
+        direction = 'RIGHT';
+      }
+    });
+
+    startBtn.addEventListener('click', () => {
+      gameStarted = true;
+      snake = [{ x: boxSize * 5, y: boxSize * 5 }, { x: boxSize * 4, y: boxSize * 5 }, { x: boxSize * 3, y: boxSize * 5 }];
+      food = spawnFood();
+      gameSpeed = parseInt(speedSelect.value);
+      gamePaused = false;
+      score = 0;
+      scoreBox.value = `Score: ${score}`;
+      startBtn.style.display = 'none';
+      intervalId = setInterval(drawGame, gameSpeed);
+      pauseResumeBtn.style.display = 'inline-block';
+      restartBtn.style.display = 'inline-block';
+    });
+
+    restartBtn.addEventListener('click', () => {
+      resetGame();
+      intervalId = setInterval(drawGame, gameSpeed);
+      pauseResumeBtn.style.display = 'inline-block';
+      restartBtn.style.display = 'inline-block';
+    });
+
+    speedSelect.addEventListener('change', () => {
+      gameSpeed = parseInt(speedSelect.value);
+      if (gameStarted && !gamePaused) {
+        clearInterval(intervalId);
+        intervalId = setInterval(drawGame, gameSpeed);
+      }
+    });
+  </script>
+</body>
+</html>
