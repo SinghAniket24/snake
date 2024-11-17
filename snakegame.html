@@ -142,6 +142,11 @@
     <p>Developed by <a href="https://yourportfolio.com" target="_blank">Aniket Singh</a></p>
   </footer>
 
+  <audio id="bgMusic" loop>
+    <source src="game.mp3" type="audio/mpeg">
+    Your browser does not support the audio element.
+  </audio>
+
   <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -150,6 +155,7 @@
     const restartBtn = document.getElementById('restartBtn');
     const speedSelect = document.getElementById('speedSelect');
     const scoreBox = document.getElementById('scoreBox');
+    const bgMusic = document.getElementById('bgMusic');
 
     const boxSize = 20;
     let snake = [];
@@ -163,29 +169,31 @@
     let gameSpeed = parseInt(speedSelect.value);
     let intervalId;
     let bonusFoodTimer = null;
+    let touchStartX = 0;
+    let touchStartY = 0;
 
     function drawGame() {
       if (gamePaused) return;
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw food (circle)
+      // Draw food
       ctx.beginPath();
       ctx.arc(food.x + boxSize / 2, food.y + boxSize / 2, boxSize / 2, 0, Math.PI * 2);
       ctx.fillStyle = "#e63946";
       ctx.fill();
       ctx.closePath();
 
-      // Draw bonus food (star shape)
+      // Draw bonus food
       if (bonusFood) {
         ctx.beginPath();
         ctx.arc(bonusFood.x + boxSize / 2, bonusFood.y + boxSize / 2, boxSize / 2, 0, Math.PI * 2);
-        ctx.fillStyle = "#ffbe0b";  // Yellow for bonus food
+        ctx.fillStyle = "#ffbe0b";
         ctx.fill();
         ctx.closePath();
       }
 
-      // Draw snake (rectangles)
+      // Draw snake
       snake.forEach(segment => {
         ctx.fillStyle = "#1d3557";
         ctx.fillRect(segment.x, segment.y, boxSize, boxSize);
@@ -216,21 +224,16 @@
 
       snake.unshift(head);
 
-      // Check if snake eats regular food
       if (head.x === food.x && head.y === food.y) {
         score++;
         foodCount++;
         food = spawnFood();
         if (foodCount % 3 === 0) {
           bonusFood = spawnBonusFood();
-          if (bonusFoodTimer) clearTimeout(bonusFoodTimer); // Reset timer if bonus food reappears
-          bonusFoodTimer = setTimeout(() => {
-            bonusFood = null; // Remove bonus food after 10 seconds
-          }, 10000); // 10 seconds
+          if (bonusFoodTimer) clearTimeout(bonusFoodTimer);
+          bonusFoodTimer = setTimeout(() => bonusFood = null, 10000);
         }
-      }
-      // Check if snake eats bonus food
-      if (bonusFood && head.x === bonusFood.x && head.y === bonusFood.y) {
+      } else if (bonusFood && head.x === bonusFood.x && head.y === bonusFood.y) {
         score += 3;
         bonusFood = null;
       } else {
@@ -272,53 +275,88 @@
       snake = [{ x: boxSize * 5, y: boxSize * 5 }, { x: boxSize * 4, y: boxSize * 5 }, { x: boxSize * 3, y: boxSize * 5 }];
       direction = 'RIGHT';
       food = spawnFood();
-      bonusFood = null;
       foodCount = 0;
-      scoreBox.value = `Score: ${score}`;
       clearInterval(intervalId);
-      gameStarted = false;
-      startBtn.style.display = 'inline-block';
+      gamePaused = false;
       pauseResumeBtn.style.display = 'none';
       restartBtn.style.display = 'none';
+      startBtn.style.display = 'inline-block';
+      bgMusic.pause();
+      bgMusic.currentTime = 0;
     }
 
-    document.addEventListener('keydown', (event) => {
-      if (!gameStarted || gamePaused) return;
-      if (event.key === 'ArrowUp' && direction !== 'DOWN') {
-        direction = 'UP';
-      } else if (event.key === 'ArrowDown' && direction !== 'UP') {
-        direction = 'DOWN';
-      } else if (event.key === 'ArrowLeft' && direction !== 'RIGHT') {
-        direction = 'LEFT';
-      } else if (event.key === 'ArrowRight' && direction !== 'LEFT') {
-        direction = 'RIGHT';
+    function handleDirectionChange(newDirection) {
+      if (newDirection === 'UP' && direction !== 'DOWN') direction = 'UP';
+      if (newDirection === 'DOWN' && direction !== 'UP') direction = 'DOWN';
+      if (newDirection === 'LEFT' && direction !== 'RIGHT') direction = 'LEFT';
+      if (newDirection === 'RIGHT' && direction !== 'LEFT') direction = 'RIGHT';
+    }
+
+    function handleKeyPress(event) {
+      const key = event.key;
+      if (key === 'ArrowUp') handleDirectionChange('UP');
+      if (key === 'ArrowDown') handleDirectionChange('DOWN');
+      if (key === 'ArrowLeft') handleDirectionChange('LEFT');
+      if (key === 'ArrowRight') handleDirectionChange('RIGHT');
+    }
+
+    function handleTouchStart(event) {
+      const touch = event.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+    }
+
+    function handleTouchMove(event) {
+      const touch = event.touches[0];
+      const deltaX = touch.clientX - touchStartX;
+      const deltaY = touch.clientY - touchStartY;
+
+      if (Math.abs(deltaX) > Math.abs(deltaY)) {
+        if (deltaX > 0) handleDirectionChange('RIGHT');
+        else handleDirectionChange('LEFT');
+      } else {
+        if (deltaY > 0) handleDirectionChange('DOWN');
+        else handleDirectionChange('UP');
       }
-    });
+    }
 
-    startBtn.addEventListener('click', () => {
-      gameStarted = true;
-      snake = [{ x: boxSize * 5, y: boxSize * 5 }, { x: boxSize * 4, y: boxSize * 5 }, { x: boxSize * 3, y: boxSize * 5 }];
-      food = spawnFood();
-      gameSpeed = parseInt(speedSelect.value);
-      gamePaused = false;
-      score = 0;
-      scoreBox.value = `Score: ${score}`;
+    function startGame() {
+      if (!gameStarted) {
+        snake = [{ x: boxSize * 5, y: boxSize * 5 }, { x: boxSize * 4, y: boxSize * 5 }, { x: boxSize * 3, y: boxSize * 5 }];
+        food = spawnFood();
+        gameStarted = true;
+      }
+
+      intervalId = setInterval(drawGame, gameSpeed);
       startBtn.style.display = 'none';
-      intervalId = setInterval(drawGame, gameSpeed);
       pauseResumeBtn.style.display = 'inline-block';
       restartBtn.style.display = 'inline-block';
-    });
+      bgMusic.play();
+    }
 
-    restartBtn.addEventListener('click', () => {
-      resetGame();
-      intervalId = setInterval(drawGame, gameSpeed);
-      pauseResumeBtn.style.display = 'inline-block';
-      restartBtn.style.display = 'inline-block';
-    });
+    function togglePauseResume() {
+      if (gamePaused) {
+        intervalId = setInterval(drawGame, gameSpeed);
+        bgMusic.play();
+        gamePaused = false;
+        pauseResumeBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
+      } else {
+        clearInterval(intervalId);
+        bgMusic.pause();
+        gamePaused = true;
+        pauseResumeBtn.innerHTML = '<i class="fas fa-play"></i> Resume';
+      }
+    }
 
-    speedSelect.addEventListener('change', () => {
-      gameSpeed = parseInt(speedSelect.value);
-      if (gameStarted && !gamePaused) {
+    document.addEventListener('keydown', handleKeyPress);
+    canvas.addEventListener('touchstart', handleTouchStart);
+    canvas.addEventListener('touchmove', handleTouchMove);
+    startBtn.addEventListener('click', startGame);
+    pauseResumeBtn.addEventListener('click', togglePauseResume);
+    restartBtn.addEventListener('click', resetGame);
+    speedSelect.addEventListener('change', event => {
+      gameSpeed = parseInt(event.target.value);
+      if (!gamePaused && gameStarted) {
         clearInterval(intervalId);
         intervalId = setInterval(drawGame, gameSpeed);
       }
