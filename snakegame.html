@@ -147,6 +147,16 @@
     Your browser does not support the audio element.
   </audio>
 
+  <audio id="foodSound">
+    <source src="food.mp3" type="audio/mpeg">
+    Your browser does not support the audio element.
+  </audio>
+
+  <audio id="gameOverSound">
+    <source src="gameOver.mp3" type="audio/mpeg">
+    Your browser does not support the audio element.
+  </audio>
+
   <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -156,6 +166,8 @@
     const speedSelect = document.getElementById('speedSelect');
     const scoreBox = document.getElementById('scoreBox');
     const bgMusic = document.getElementById('bgMusic');
+    const foodSound = document.getElementById('foodSound');
+    const gameOverSound = document.getElementById('gameOverSound');
 
     const boxSize = 20;
     let snake = [];
@@ -228,6 +240,7 @@
         score++;
         foodCount++;
         food = spawnFood();
+        foodSound.play();
         if (foodCount % 3 === 0) {
           bonusFood = spawnBonusFood();
           if (bonusFoodTimer) clearTimeout(bonusFoodTimer);
@@ -270,96 +283,95 @@
     }
 
     function resetGame() {
-      alert('Game Over! Your score: ' + score);
-      score = 0;
-      snake = [{ x: boxSize * 5, y: boxSize * 5 }, { x: boxSize * 4, y: boxSize * 5 }, { x: boxSize * 3, y: boxSize * 5 }];
+      clearInterval(intervalId);
+      gameOverSound.play();
+      gameStarted = false;
+      snake = [{ x: 100, y: 100 }];
       direction = 'RIGHT';
       food = spawnFood();
+      score = 0;
       foodCount = 0;
-      clearInterval(intervalId);
-      gamePaused = false;
-      pauseResumeBtn.style.display = 'none';
+      scoreBox.value = `Score: ${score}`;
+      gamePaused = true;
+      startBtn.style.display = 'block';
       restartBtn.style.display = 'none';
-      startBtn.style.display = 'inline-block';
+      pauseResumeBtn.style.display = 'none';
       bgMusic.pause();
-      bgMusic.currentTime = 0;
-    }
-
-    function handleDirectionChange(newDirection) {
-      if (newDirection === 'UP' && direction !== 'DOWN') direction = 'UP';
-      if (newDirection === 'DOWN' && direction !== 'UP') direction = 'DOWN';
-      if (newDirection === 'LEFT' && direction !== 'RIGHT') direction = 'LEFT';
-      if (newDirection === 'RIGHT' && direction !== 'LEFT') direction = 'RIGHT';
-    }
-
-    function handleKeyPress(event) {
-      const key = event.key;
-      if (key === 'ArrowUp') handleDirectionChange('UP');
-      if (key === 'ArrowDown') handleDirectionChange('DOWN');
-      if (key === 'ArrowLeft') handleDirectionChange('LEFT');
-      if (key === 'ArrowRight') handleDirectionChange('RIGHT');
-    }
-
-    function handleTouchStart(event) {
-      const touch = event.touches[0];
-      touchStartX = touch.clientX;
-      touchStartY = touch.clientY;
-    }
-
-    function handleTouchMove(event) {
-      const touch = event.touches[0];
-      const deltaX = touch.clientX - touchStartX;
-      const deltaY = touch.clientY - touchStartY;
-
-      if (Math.abs(deltaX) > Math.abs(deltaY)) {
-        if (deltaX > 0) handleDirectionChange('RIGHT');
-        else handleDirectionChange('LEFT');
-      } else {
-        if (deltaY > 0) handleDirectionChange('DOWN');
-        else handleDirectionChange('UP');
-      }
-    }
-
-    function startGame() {
-      if (!gameStarted) {
-        snake = [{ x: boxSize * 5, y: boxSize * 5 }, { x: boxSize * 4, y: boxSize * 5 }, { x: boxSize * 3, y: boxSize * 5 }];
-        food = spawnFood();
-        gameStarted = true;
-      }
-
-      intervalId = setInterval(drawGame, gameSpeed);
-      startBtn.style.display = 'none';
-      pauseResumeBtn.style.display = 'inline-block';
-      restartBtn.style.display = 'inline-block';
-      bgMusic.play();
     }
 
     function togglePauseResume() {
       if (gamePaused) {
-        intervalId = setInterval(drawGame, gameSpeed);
-        bgMusic.play();
         gamePaused = false;
         pauseResumeBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
+        bgMusic.play();
       } else {
-        clearInterval(intervalId);
-        bgMusic.pause();
         gamePaused = true;
         pauseResumeBtn.innerHTML = '<i class="fas fa-play"></i> Resume';
+        bgMusic.pause();
       }
     }
 
-    document.addEventListener('keydown', handleKeyPress);
-    canvas.addEventListener('touchstart', handleTouchStart);
-    canvas.addEventListener('touchmove', handleTouchMove);
+    function startGame() {
+      snake = [{ x: 100, y: 100 }];
+      direction = 'RIGHT';
+      food = spawnFood();
+      score = 0;
+      foodCount = 0;
+      gamePaused = false;
+      gameStarted = true;
+      startBtn.style.display = 'none';
+      restartBtn.style.display = 'inline-block';
+      pauseResumeBtn.style.display = 'inline-block';
+      bgMusic.play();
+      intervalId = setInterval(drawGame, gameSpeed);
+    }
+
+    function restartGame() {
+      resetGame();
+      startGame();
+    }
+
+    document.addEventListener('keydown', function (e) {
+      if (!gameStarted || gamePaused) return;
+      if (e.key === 'ArrowUp' && direction !== 'DOWN') direction = 'UP';
+      if (e.key === 'ArrowDown' && direction !== 'UP') direction = 'DOWN';
+      if (e.key === 'ArrowLeft' && direction !== 'RIGHT') direction = 'LEFT';
+      if (e.key === 'ArrowRight' && direction !== 'LEFT') direction = 'RIGHT';
+    });
+
     startBtn.addEventListener('click', startGame);
     pauseResumeBtn.addEventListener('click', togglePauseResume);
-    restartBtn.addEventListener('click', resetGame);
-    speedSelect.addEventListener('change', event => {
-      gameSpeed = parseInt(event.target.value);
-      if (!gamePaused && gameStarted) {
+    restartBtn.addEventListener('click', restartGame);
+    speedSelect.addEventListener('change', (e) => {
+      gameSpeed = parseInt(e.target.value);
+      if (gameStarted) {
         clearInterval(intervalId);
         intervalId = setInterval(drawGame, gameSpeed);
       }
+    });
+
+    // Touch Controls
+    canvas.addEventListener('touchstart', function (e) {
+      touchStartX = e.touches[0].pageX;
+      touchStartY = e.touches[0].pageY;
+    });
+
+    canvas.addEventListener('touchmove', function (e) {
+      if (!touchStartX || !touchStartY) return;
+
+      const touchEndX = e.touches[0].pageX;
+      const touchEndY = e.touches[0].pageY;
+
+      if (Math.abs(touchEndX - touchStartX) > Math.abs(touchEndY - touchStartY)) {
+        if (touchEndX < touchStartX && direction !== 'RIGHT') direction = 'LEFT';
+        if (touchEndX > touchStartX && direction !== 'LEFT') direction = 'RIGHT';
+      } else {
+        if (touchEndY < touchStartY && direction !== 'DOWN') direction = 'UP';
+        if (touchEndY > touchStartY && direction !== 'UP') direction = 'DOWN';
+      }
+
+      touchStartX = touchEndX;
+      touchStartY = touchEndY;
     });
   </script>
 </body>
