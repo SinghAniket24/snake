@@ -14,11 +14,9 @@ Welcome to **Aniket's Snake Challenge**, a fun and interactive twist on the clas
 
 ## 🚀 Demo
 
-Play it live: [GitHub Pages Demo](https://yourusername.github.io/snake-challenge)  
-*(Replace with your actual deployment URL)*
+Play it live: [GitHub Pages Demo](https://singhaniket24.github.io/snake/snakegame.html)
 
 ![Screenshot](https://your-screenshot-url.com)  
-*(Insert a screenshot of your game interface)*
 
 ## 🕹️ How to Play
 
